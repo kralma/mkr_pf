@@ -20,6 +20,7 @@
     </list>
     <ignored path="mkr2016_pf.iws" />
     <ignored path=".idea/workspace.xml" />
+    <ignored path=".idea/vcs.xml" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -39,8 +40,8 @@
       <file leaf-file-name="pf_main.cpp" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/pf_main.cpp">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="116">
-              <caret line="278" column="9" selection-start-line="278" selection-start-column="9" selection-end-line="278" selection-end-column="9" />
+            <state relative-caret-position="371">
+              <caret line="287" column="31" selection-start-line="287" selection-start-column="31" selection-end-line="287" selection-end-column="31" />
               <folding />
             </state>
           </provider>
@@ -266,12 +267,20 @@
       <workItem from="1484065032879" duration="7582000" />
       <workItem from="1484072770608" duration="599000" />
       <workItem from="1484086112063" duration="1032000" />
-      <workItem from="1484128936369" duration="4793000" />
+      <workItem from="1484128936369" duration="7417000" />
     </task>
+    <task id="LOCAL-00001" summary="Downsizing">
+      <created>1484133749538</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1484133749538</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="29673000" />
+    <option name="totallyTimeSpent" value="32297000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="61" y="64" width="1293" height="686" extended-state="0" />
@@ -307,6 +316,10 @@
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Downsizing" />
+    <option name="LAST_COMMIT_MESSAGE" value="Downsizing" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />
@@ -709,8 +722,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/pf_main.cpp">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="116">
-          <caret line="278" column="9" selection-start-line="278" selection-start-column="9" selection-end-line="278" selection-end-column="9" />
+        <state relative-caret-position="371">
+          <caret line="287" column="31" selection-start-line="287" selection-start-column="31" selection-end-line="287" selection-end-column="31" />
           <folding />
         </state>
       </provider>

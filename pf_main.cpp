@@ -25,9 +25,9 @@
 #include "dataLoader/laserDataLoader.h"
 #include "laserSimulator/lasersimulator.h"
 
-#define N_OF_PARTICLES_INITIAL 10000
-#define N_OF_PARTICLES_MIN 300
-#define N_OF_RANDOM_PARTICLES 50
+#define N_OF_PARTICLES_INITIAL 1000
+#define N_OF_PARTICLES_MIN 900
+#define N_OF_RANDOM_PARTICLES 100
 using namespace std;
 using namespace imr;
 using namespace gui;
@@ -185,20 +185,7 @@ int main(int argc, char **argv) {
                     errors[l] = distTmp;
                     errAvg += distTmp;
                 }
-                errAvg /= n;
-                double cov = 0;
-                for (int l = 0; l < n; l++) {
-                    cov += (errors[l] - errAvg) * (errors[l] - errAvg);
-                }
-                cov /= n;
-                double weight = 1/errAvg;
-//                double weight = 0;
-//                for (int l = 0; l < n; l++) {
-//                    double err = 1 / (cov * sqrt(2 * M_PI)) * exp(-1 * (errors[l] / (2 * cov * cov)));
-//                    errors[l] = err;
-//                    weight += err;
-//                }
-                particles[k].weight = weight / n;
+                particles[k].weight = 1/errAvg;
         }
 
         particles = getNewParticles(particles,simul);
@@ -258,7 +245,7 @@ ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator s
     for (int i = 0; i < currentParticles.size(); i++) {
         weightSum += currentParticles[i].weight;
     }
-    for (int i = 0; i < currentParticles.size() - downSizing;) {
+    for (int i = 0; i < currentParticles.size() - N_OF_RANDOM_PARTICLES - downSizing;) {
         double t = 0;
         double rnd = drand48() * weightSum;
         for (int j = 0; j < currentParticles.size(); j++) {
@@ -291,6 +278,8 @@ ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator s
             i++;
         }
     }
+
+    std::cout<<newParticles.size()<<endl;
     return newParticles;
 }
 
