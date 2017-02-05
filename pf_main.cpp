@@ -30,7 +30,7 @@ using namespace laserDataLoader;
 #define N_OF_RANDOM_PARTICLES 100
 #define RAND_D 0.12
 #define RAND_ANG 0.08
-#define GAUSS_A 0.5
+#define GAUSS_A 0.48
 #define GAUSS_C 0.09
 #define ALPHA 0.025
 
