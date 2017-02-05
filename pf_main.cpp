@@ -31,7 +31,7 @@ using namespace laserDataLoader;
 #define RAND_D 0.12
 #define RAND_ANG 0.08
 #define GAUSS_A 0.5
-#define GAUSS_C 0.2
+#define GAUSS_C 0.09
 #define ALPHA 0.025
 
 
@@ -252,9 +252,9 @@ ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator s
             Particle p;
             p.pos = randomizePosition(currentParticles[j].pos);
 //            if (simul.isFeasible(p.pos)) {
-            newParticles.push_back(p);
-            i++;
-            break;
+                newParticles.push_back(p);
+                i++;
+                break;
 //            }
         }
     }
