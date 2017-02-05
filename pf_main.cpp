@@ -16,22 +16,23 @@
 #include<cstdlib>
 #include<fstream>
 #include<iostream>
-#include <cstdlib>
 #include <ctime>
 #include <vtkPNGReader.h>
-#include <zconf.h>
-
 #include "gui/gui.h"
-#include "dataLoader/laserDataLoader.h"
 #include "laserSimulator/lasersimulator.h"
 
-#define N_OF_PARTICLES_INITIAL 1000
-#define N_OF_PARTICLES_MIN 900
-#define N_OF_RANDOM_PARTICLES 100
 using namespace std;
 using namespace imr;
 using namespace gui;
 using namespace laserDataLoader;
+
+#define N_OF_PARTICLES_INITIAL 1000
+#define N_OF_RANDOM_PARTICLES 100
+#define RAND_D 0.12
+#define RAND_ANG 0.08
+#define GAUSS_A 0.5
+#define GAUSS_C 0.2
+#define ALPHA 0.025
 
 
 double toRadians(const double alpha);
@@ -52,7 +53,15 @@ void calculateRawPoints(RawPoints &rp, Measurement m, RobotPosition p);
 void polar2cartesian(Point &p, const double &alpha, const double &r, const RobotPosition &p0);
 
 double getDistancePow(Point &p1, Point &p2);
+
 RobotPosition randomizePosition(RobotPosition currPos);
+
+RobotPosition moveParticle(RobotPosition currPos, double orientationDiffAng, double positionDiffAng, double dist);
+
+double gauss(const double variance);
+
+Particle getBestParticle(ParticleVector particleVector);
+
 ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator simul);
 
 void help(char **argv) {
@@ -117,7 +126,6 @@ int main(int argc, char **argv) {
     // Load data
     LaserDataLoader loader(dataFile, nMeasurements, "FLASER");
     LaserScan scan;
-    RawPoints scanPoints;
     Measurement measurement;
     RobotPosition pos;
 
@@ -126,15 +134,15 @@ int main(int argc, char **argv) {
     reader->SetFileName("../data/belgioioso-map5b.png");
     imr::LaserSimulator simul(reader);
     Gui gui(/*initial,tentative,robotPosition2point(loader[0].position),*/reader);
-//    std::cout << "X: " << simul.grid2realX(0) << " " << simul.grid2realX(1872) << std::endl;
-//    std::cout << "Y: " << simul.grid2realY(0) << " " << simul.grid2realY(5015) << std::endl;
+    std::cout << "X: " << simul.grid2realX(0) << " " << simul.grid2realX(1872) << std::endl;
+    std::cout << "Y: " << simul.grid2realY(0) << " " << simul.grid2realY(5015) << std::endl;
     Particle p;
     ParticleVector particles;
     double x, y, phi;
     for (size_t i = 0; i < N_OF_PARTICLES_INITIAL;) {
         x = (rand() % 3669 - 1696) / 100.0;
         y = (rand() % 9828 - 4325) / 100.0;
-        phi = M_PI * 2 * drand48();
+        phi = (rand() % (int)(M_PI * 2000)) / 1000.0;
 //        phi = loader[0].position.phi;
         p.pos = RobotPosition(x, y, phi);
         if (simul.isFeasible(p.pos)) {
@@ -146,52 +154,41 @@ int main(int argc, char **argv) {
 
     clock_t begin = clock();
     RobotPosition prevPos = loader[0].position;
-    for (int i = 0; i < nMeasurements; i++) {
-       double angle = 8.5/180.0*M_PI;
-       pos.x = loader[i].position.x*cos(angle) - loader[i].position.y*sin(angle);
-       pos.y = loader[i].position.x*sin(angle) + loader[i].position.y*cos(angle);
-       pos.phi = loader[i].position.phi + angle;
-//        pos = loader[i].position;
-//         std::cout << "POSE " << pos.x << " " << pos.y << std::endl;
-        scan = simul.getScan(pos);
-        scanPoints = simul.getRawPoints();
-        // gui.clearPositionPoints();
-
+    for (int i = 1; i < nMeasurements; i++) {
+        RawPoints scanPoints;
+        pos = loader[i].position;
+        scan = loader[i].scan;
 
         double movX = pos.x - prevPos.x;
         double movY = pos.y - prevPos.y;
         double movD = sqrt(movX * movX + movY * movY);
         double movPhi = pos.phi - prevPos.phi;
-
-        gui.setPosition(robotPosition2point(pos));
-        gui.clearMapPoints();
-        gui.setPointsToMap(scanPoints, robotPosition2point(pos));
-        gui.setParticlePoints(particles);
+        double posPhi = atan2(movY,movX) - prevPos.phi;
 
         for (int k = 0; k < particles.size(); k++) {
-            RobotPosition posTmp = particles[k].pos;
-            posTmp.phi += movPhi; // ??
-            posTmp.x += cos(posTmp.phi) * movD;
-            posTmp.y += sin(posTmp.phi) * movD;
-            particles[k].pos = posTmp;
+            particles[k].pos = moveParticle(particles[k].pos, movPhi, posPhi, movD);
+            particles[k].weight = 0;
 
+            LaserScan scanSim = simul.getScan(particles[k].pos);
+            int multiplier = (int) floor(scan.size() / scanSim.size());
 
-                LaserScan scanTmp = simul.getScan(posTmp);
-                unsigned long n = scanTmp.size();
-                double errors[n];
-                double errAvg = 0;
-                for (int l = 0; l < n; l++) {
-                    double distTmp = abs(scanTmp[l] - scan[l]);
-                    errors[l] = distTmp;
-                    errAvg += distTmp;
-                }
-                particles[k].weight = 1/errAvg;
+            for (int l = 0 ; l < scanSim.size() ; l++) {
+                double diff = fabs(scanSim[l] - scan[multiplier * l]);
+                double gauss = GAUSS_A * exp(-diff / GAUSS_C);
+                particles[k].weight += gauss;
+            }
         }
 
-        particles = getNewParticles(particles,simul);
-//        usleep(200000);
-        gui.startInteractor();
+        Particle bestParticle = getBestParticle(particles);
+        calculateRawPoints(scanPoints, loader[i], bestParticle.pos);
+        gui.clearMapPoints();
+        gui.setPointsToMap(scanPoints, robotPosition2point(bestParticle.pos));
+        gui.setParticlePoints(particles);
+//        gui.startInteractor();
+
+        particles = getNewParticles(particles, simul);
         prevPos = pos;
+
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
@@ -238,16 +235,13 @@ double getDistancePow(Point &p1, Point &p2) {
 ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator simul) {
     ParticleVector newParticles;
 
-    int minN = N_OF_PARTICLES_MIN;
-    double downSizing = 0.01 * (currentParticles.size() - minN);
-
     double weightSum = 0;
     for (int i = 0; i < currentParticles.size(); i++) {
         weightSum += currentParticles[i].weight;
     }
-    for (int i = 0; i < currentParticles.size() - N_OF_RANDOM_PARTICLES - downSizing;) {
+    for (int i = 0; i < currentParticles.size() - N_OF_RANDOM_PARTICLES; ) {
         double t = 0;
-        double rnd = drand48() * weightSum;
+        double rnd = (rand() % (int) (weightSum * 1000000)) / 1000000.0;
         for (int j = 0; j < currentParticles.size(); j++) {
 
             if (currentParticles[j].weight + t < rnd) {
@@ -257,40 +251,71 @@ ParticleVector getNewParticles(ParticleVector currentParticles, LaserSimulator s
 
             Particle p;
             p.pos = randomizePosition(currentParticles[j].pos);
-
-            if (simul.isFeasible(p.pos)) {
-                newParticles.push_back(p);
-                i++;
-                break;
-            }
+//            if (simul.isFeasible(p.pos)) {
+            newParticles.push_back(p);
+            i++;
+            break;
+//            }
         }
     }
     for (int i = 0; i < N_OF_RANDOM_PARTICLES;) {
         double x = (rand() % 3669 - 1696) / 100.0;
         double y = (rand() % 9828 - 4325) / 100.0;
-        double phi = M_PI * 2 * drand48();
-//        phi = loader[0].position.phi;
+        double phi = (rand() % (int)(M_PI * 2000)) / 1000.0;
         Particle p;
         p.pos = RobotPosition(x, y, phi);
         if (simul.isFeasible(p.pos)) {
-            p.weight = 1.0 / newParticles.size() + N_OF_RANDOM_PARTICLES - i;
+            p.weight = 1 / N_OF_RANDOM_PARTICLES;
             newParticles.push_back(p);
             i++;
         }
     }
 
-    std::cout<<newParticles.size()<<endl;
+//    std::cout << newParticles.size() << endl;
+
     return newParticles;
 }
 
 RobotPosition randomizePosition(RobotPosition currPos) {
-    double posCoef = 0.1;
-    double angCoef = M_PI * 0.4;
-    double randAng = M_PI * 2 * drand48() - M_PI;
-//    std::cout<< M_2_PI << endl;
-    double phi = currPos.phi + angCoef * drand48() - 0.5 * angCoef;
-    double x = currPos.x + posCoef * drand48() * cos(randAng);
-    double y = currPos.y + posCoef * drand48() * sin(randAng);
+    double posCoef = RAND_D;
+    double angCoef = M_PI * RAND_ANG;
+    double randAng = (rand() % (int)(M_PI * 2000)) / 1000;;
+
+    double phi = currPos.phi + (rand() % (int)(angCoef * 1000))/1000.0 - 0.5 * angCoef;
+    double x = currPos.x + (rand() % (int) (posCoef * 1000)) / 1000.0 * cos(randAng);
+    double y = currPos.y + (rand() % (int) (posCoef * 1000)) / 1000.0 * sin(randAng);
     RobotPosition newPos(x, y, phi);
     return newPos;
+}
+
+RobotPosition moveParticle(RobotPosition currPos, double orientationDiffAng, double positionDiffAng, double dist) {
+    RobotPosition newPos;
+    double angDiff = orientationDiffAng - positionDiffAng;
+
+    dist += gauss(ALPHA * dist + ALPHA * (fabs(positionDiffAng) + fabs(angDiff)));
+
+    positionDiffAng += gauss(ALPHA * fabs(positionDiffAng) + ALPHA * dist);
+
+    angDiff += gauss(ALPHA * fabs(angDiff) + ALPHA * dist);
+
+    newPos.phi = currPos.phi + positionDiffAng + angDiff;
+    newPos.x = currPos.x + dist*cos(currPos.phi + positionDiffAng);
+    newPos.y = currPos.y + dist*sin(currPos.phi + positionDiffAng);
+
+    return newPos;
+}
+
+double gauss(const double variance) {
+    return variance*sqrt(-2*log((rand() % 100000) / 100000.0))*cos((rand()%(int)(2 * M_PI * 100000)) / 100000.0);
+}
+
+Particle getBestParticle(ParticleVector particleVector) {
+    Particle best;
+    best.weight = 0;
+    for (int i = 0; i < particleVector.size(); i++) {
+        if (particleVector[i].weight > best.weight) {
+            best = particleVector[i];
+        }
+    }
+    return best;
 }
